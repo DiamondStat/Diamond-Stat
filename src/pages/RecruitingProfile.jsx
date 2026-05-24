@@ -1,0 +1,299 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../supabase'
+
+function RecruitingProfile() {
+  const [userStats, setUserStats] = useState({})
+  const [sessions, setSessions] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
+  const [profile, setProfile] = useState(null)
+  const [playerInfo, setPlayerInfo] = useState({
+    name: localStorage.getItem('playerName') || '',
+    age: '', position: '', school: '', gpa: '', height: '', weight: '', gradYear: '', email: '', phone: ''
+  })
+  const [editing, setEditing] = useState(true)
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase
+          .from('sessions')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false })
+
+        if (data && data.length > 0) {
+          setSessions(data)
+          const avg = (arr, key) => {
+            const valid = arr.filter(s => s[key] > 0)
+            return valid.length > 0 ? Math.round(valid.reduce((sum, s) => sum + s[key], 0) / valid.length) : 0
+          }
+          const max = (arr, key) => {
+            const valid = arr.filter(s => s[key] > 0)
+            return valid.length > 0 ? Math.max(...valid.map(s => s[key])) : 0
+          }
+          setUserStats({
+            avgSwing: avg(data, 'swing_score'),
+            avgCommand: avg(data, 'command_score'),
+            avgFielding: avg(data, 'fielding_score'),
+            avgExitVelo: avg(data, 'exit_velocity'),
+            avgPitchVelo: avg(data, 'velocity'),
+            topSwing: max(data, 'swing_score'),
+            topExitVelo: max(data, 'exit_velocity'),
+            topPitchVelo: max(data, 'velocity'),
+            totalSessions: data.length,
+          })
+        }
+      }
+      setLoading(false)
+    }
+    load()
+  }, [])
+
+  const generateProfile = async () => {
+    setGenerating(true)
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': import.meta.env.VITE_ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': true,
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 1000,
+          messages: [{
+            role: 'user',
+            content: `You are a baseball recruiting expert. Write a compelling recruiting profile summary for this player to send to college coaches. Be specific, professional, and highlight their strengths.
+
+Player Info:
+Name: ${playerInfo.name}
+Age: ${playerInfo.age}
+Position: ${playerInfo.position}
+School: ${playerInfo.school}
+GPA: ${playerInfo.gpa}
+Height: ${playerInfo.height}
+Weight: ${playerInfo.weight}
+Graduation Year: ${playerInfo.gradYear}
+
+Performance Stats:
+Avg Swing Score: ${userStats.avgSwing || 'N/A'}/100
+Avg Command Score: ${userStats.avgCommand || 'N/A'}/100
+Avg Fielding Score: ${userStats.avgFielding || 'N/A'}/100
+Avg Exit Velocity: ${userStats.avgExitVelo || 'N/A'} mph
+Avg Pitch Velocity: ${userStats.avgPitchVelo || 'N/A'} mph
+Top Exit Velocity: ${userStats.topExitVelo || 'N/A'} mph
+Top Pitch Velocity: ${userStats.topPitchVelo || 'N/A'} mph
+Total Sessions Logged: ${userStats.totalSessions || 0}
+
+Write a 3 paragraph recruiting profile:
+1. Introduction and athletic background
+2. Performance stats and what they show about the player
+3. Character, work ethic, and why college programs should recruit them
+
+Keep it under 250 words, professional, and compelling.`
+          }]
+        }),
+      })
+      const data = await response.json()
+      setProfile(data.content[0].text)
+      setEditing(false)
+    } catch (err) {
+      console.error(err)
+      setProfile('Error generating profile. Check your API key.')
+    }
+    setGenerating(false)
+  }
+
+  const copyProfile = () => {
+    const text = `
+DIAMONDSTAT RECRUITING PROFILE
+================================
+${playerInfo.name} | ${playerInfo.position} | Class of ${playerInfo.gradYear}
+${playerInfo.school} | GPA: ${playerInfo.gpa} | ${playerInfo.height} / ${playerInfo.weight}
+📧 ${playerInfo.email} | 📱 ${playerInfo.phone}
+
+PERFORMANCE STATS
+-----------------
+⚾ Avg Swing Score: ${userStats.avgSwing || 'N/A'}/100
+🎯 Avg Command Score: ${userStats.avgCommand || 'N/A'}/100
+🧤 Avg Fielding Score: ${userStats.avgFielding || 'N/A'}/100
+💨 Avg Exit Velocity: ${userStats.avgExitVelo || 'N/A'} mph (Top: ${userStats.topExitVelo || 'N/A'} mph)
+🔥 Avg Pitch Velocity: ${userStats.avgPitchVelo || 'N/A'} mph (Top: ${userStats.topPitchVelo || 'N/A'} mph)
+📊 Total Sessions: ${userStats.totalSessions || 0}
+
+RECRUITING SUMMARY
+------------------
+${profile}
+
+Generated by DiamondStat — AI Baseball Training Platform
+    `.trim()
+    navigator.clipboard.writeText(text)
+    alert('Profile copied to clipboard! Paste it into an email to send to coaches.')
+  }
+
+  const inputStyle = {
+    width: '100%', padding: '10px 14px', background: '#0D1117',
+    border: '1px solid #21262D', borderRadius: '8px', color: 'white',
+    fontSize: '14px', fontFamily: 'Barlow, sans-serif', marginTop: '4px'
+  }
+
+  if (loading) return (
+    <div style={{ padding: '2rem', color: '#888', fontSize: '14px' }}>Loading your profile...</div>
+  )
+
+  return (
+    <div style={{ padding: '2rem', maxWidth: '900px', margin: '0 auto' }}>
+      <h1 style={{ color: '#E85D24', fontSize: '32px', marginBottom: '4px' }}>Recruiting Profile</h1>
+      <p style={{ color: '#888', marginBottom: '2rem', fontSize: '14px' }}>Generate a professional recruiting profile to send to college coaches</p>
+
+      {editing ? (
+        <>
+          {/* Player info form */}
+          <div style={{ background: '#161B22', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem', border: '1px solid #21262D' }}>
+            <div style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Player Information</div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+              {[
+                { key: 'name', label: 'Full Name', placeholder: 'Ben Clark' },
+                { key: 'age', label: 'Age', placeholder: '17' },
+                { key: 'position', label: 'Position', placeholder: 'Shortstop / RHP' },
+                { key: 'school', label: 'High School', placeholder: 'Lincoln High School' },
+                { key: 'gpa', label: 'GPA', placeholder: '3.8' },
+                { key: 'gradYear', label: 'Graduation Year', placeholder: '2027' },
+                { key: 'height', label: 'Height', placeholder: '6\'1"' },
+                { key: 'weight', label: 'Weight', placeholder: '185 lbs' },
+                { key: 'email', label: 'Email', placeholder: 'ben@email.com' },
+                { key: 'phone', label: 'Phone', placeholder: '(555) 123-4567' },
+              ].map(({ key, label, placeholder }) => (
+                <div key={key}>
+                  <div style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>{label}</div>
+                  <input style={inputStyle} placeholder={placeholder}
+                    value={playerInfo[key]}
+                    onChange={e => setPlayerInfo(p => ({ ...p, [key]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Stats preview */}
+          <div style={{ background: '#161B22', borderRadius: '12px', padding: '1.5rem', marginBottom: '1.5rem', border: '1px solid #21262D' }}>
+            <div style={{ color: '#fff', fontSize: '16px', fontWeight: '700', marginBottom: '12px' }}>Your Stats (Auto-filled from DiamondStat)</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+              {[
+                { label: 'Avg Swing Score', value: userStats.avgSwing, unit: '/100', color: '#E85D24', icon: '⚾' },
+                { label: 'Avg Command Score', value: userStats.avgCommand, unit: '/100', color: '#3FB950', icon: '🎯' },
+                { label: 'Avg Fielding Score', value: userStats.avgFielding, unit: '/100', color: '#58A6FF', icon: '🧤' },
+                { label: 'Avg Exit Velocity', value: userStats.avgExitVelo, unit: ' mph', color: '#F0883E', icon: '💨' },
+                { label: 'Top Exit Velocity', value: userStats.topExitVelo, unit: ' mph', color: '#F0883E', icon: '💨' },
+                { label: 'Top Pitch Velocity', value: userStats.topPitchVelo, unit: ' mph', color: '#A371F7', icon: '🔥' },
+              ].map(({ label, value, unit, color, icon }) => (
+                <div key={label} style={{ background: '#0D1117', borderRadius: '8px', padding: '12px', border: '1px solid #21262D' }}>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>{icon} {label}</div>
+                  <div style={{ color: value > 0 ? color : '#333', fontSize: '22px', fontWeight: '800', fontFamily: 'Barlow Condensed, sans-serif' }}>
+                    {value > 0 ? `${value}${unit}` : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={generateProfile} disabled={generating || !playerInfo.name || !playerInfo.position}
+            style={{
+              width: '100%', padding: '14px', background: generating ? '#555' : '#E85D24',
+              border: 'none', borderRadius: '10px', color: 'white',
+              fontSize: '16px', fontWeight: '700', cursor: generating ? 'not-allowed' : 'pointer',
+              fontFamily: 'Barlow, sans-serif'
+            }}>
+            {generating ? 'AI is writing your profile...' : 'Generate Recruiting Profile 📋'}
+          </button>
+        </>
+      ) : (
+        <>
+          {/* Generated profile */}
+          <div style={{ background: '#161B22', borderRadius: '12px', padding: '2rem', marginBottom: '1.5rem', border: '1px solid #21262D' }}>
+
+            {/* Header */}
+            <div style={{ borderBottom: '2px solid #E85D24', paddingBottom: '1rem', marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ color: '#E85D24', fontSize: '11px', fontWeight: '700', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: '4px' }}>DiamondStat Recruiting Profile</div>
+                  <h2 style={{ color: '#fff', fontSize: '28px', marginBottom: '4px' }}>{playerInfo.name}</h2>
+                  <div style={{ color: '#888', fontSize: '14px' }}>
+                    {playerInfo.position} · Class of {playerInfo.gradYear} · {playerInfo.school}
+                  </div>
+                  <div style={{ color: '#888', fontSize: '13px', marginTop: '4px' }}>
+                    {playerInfo.height} · {playerInfo.weight} · GPA: {playerInfo.gpa}
+                  </div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#888', fontSize: '13px' }}>{playerInfo.email}</div>
+                  <div style={{ color: '#888', fontSize: '13px' }}>{playerInfo.phone}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '1.5rem' }}>
+              {[
+                { label: 'Avg Swing Score', value: userStats.avgSwing, unit: '/100', color: '#E85D24', icon: '⚾' },
+                { label: 'Avg Command Score', value: userStats.avgCommand, unit: '/100', color: '#3FB950', icon: '🎯' },
+                { label: 'Avg Fielding Score', value: userStats.avgFielding, unit: '/100', color: '#58A6FF', icon: '🧤' },
+                { label: 'Avg Exit Velocity', value: userStats.avgExitVelo, unit: ' mph', color: '#F0883E', icon: '💨' },
+                { label: 'Top Exit Velocity', value: userStats.topExitVelo, unit: ' mph', color: '#F0883E', icon: '💨' },
+                { label: 'Top Pitch Velocity', value: userStats.topPitchVelo, unit: ' mph', color: '#A371F7', icon: '🔥' },
+              ].map(({ label, value, unit, color, icon }) => (
+                <div key={label} style={{ background: '#0D1117', borderRadius: '8px', padding: '12px', border: '1px solid #21262D', textAlign: 'center' }}>
+                  <div style={{ color: '#555', fontSize: '11px', marginBottom: '4px' }}>{icon} {label}</div>
+                  <div style={{ color: value > 0 ? color : '#333', fontSize: '22px', fontWeight: '800', fontFamily: 'Barlow Condensed, sans-serif' }}>
+                    {value > 0 ? `${value}${unit}` : '—'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* AI written summary */}
+            <div style={{ background: '#0D1117', borderRadius: '10px', padding: '1.25rem', border: '1px solid #21262D' }}>
+              <div style={{ color: '#E85D24', fontSize: '13px', fontWeight: '700', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Recruiting Summary
+              </div>
+              <div style={{ color: '#ccc', fontSize: '14px', lineHeight: '1.8', whiteSpace: 'pre-wrap' }}>
+                {profile}
+              </div>
+            </div>
+
+            <div style={{ marginTop: '12px', color: '#555', fontSize: '12px', textAlign: 'center' }}>
+              Generated by DiamondStat — AI Baseball Training Platform · diamondstat.com
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <button onClick={copyProfile}
+              style={{
+                flex: 1, padding: '14px', background: '#E85D24',
+                border: 'none', borderRadius: '10px', color: 'white',
+                fontSize: '16px', fontWeight: '700', cursor: 'pointer',
+                fontFamily: 'Barlow, sans-serif'
+              }}>
+              📋 Copy Profile to Clipboard
+            </button>
+            <button onClick={() => setEditing(true)}
+              style={{
+                padding: '14px 24px', background: 'transparent',
+                border: '1px solid #21262D', borderRadius: '10px', color: '#888',
+                fontSize: '16px', fontWeight: '700', cursor: 'pointer',
+                fontFamily: 'Barlow, sans-serif'
+              }}>
+              Edit Info
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+export default RecruitingProfile
