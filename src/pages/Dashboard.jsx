@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { supabase } from '../supabase'
+import { getUses } from '../useAILimit'
 
 function Dashboard() {
   const [stats, setStats] = useState({
@@ -12,6 +13,9 @@ function Dashboard() {
   })
   const [name, setName] = useState(localStorage.getItem('playerName') || 'Player')
   const [loading, setLoading] = useState(true)
+  const [uses, setUses] = useState(0)
+  const [isPaid, setIsPaid] = useState(false)
+  const [showPlanInfo, setShowPlanInfo] = useState(false)
 
   useEffect(() => {
     const loadStats = async () => {
@@ -43,11 +47,18 @@ function Dashboard() {
             topSwingScore: max(swings, 'swing_score'),
           })
         }
+
+        // Load usage info
+        const { uses: currentUses, isPaid: paid } = await getUses()
+        setUses(currentUses)
+        setIsPaid(paid)
       }
       setLoading(false)
     }
     loadStats()
   }, [])
+
+  const freeLeft = Math.max(0, 5 - uses)
 
   const statCard = (label, value, unit, color, icon) => (
     <div className="card fade-in" style={{ padding: '1.5rem' }}>
@@ -103,13 +114,137 @@ function Dashboard() {
   return (
     <div style={{ padding: '2rem', maxWidth: '1100px', margin: '0 auto' }}>
 
+      {/* Plan info modal */}
+      {showPlanInfo && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1000, padding: '2rem'
+        }}>
+          <div style={{
+            background: '#161B22', borderRadius: '16px', padding: '2.5rem',
+            maxWidth: '460px', width: '100%', border: '1px solid #21262D'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+              <div style={{ fontSize: '40px', marginBottom: '12px' }}>{isPaid ? '👑' : '💎'}</div>
+              <h2 style={{ color: '#fff', fontSize: '24px', marginBottom: '4px' }}>
+                {isPaid ? 'DiamondStat Pro' : 'Free Plan'}
+              </h2>
+              <p style={{ color: '#888', fontSize: '14px' }}>
+                {isPaid ? 'You have unlimited access to all features' : `You have ${freeLeft} free ${freeLeft === 1 ? 'analysis' : 'analyses'} remaining`}
+              </p>
+            </div>
+
+            {/* Usage bar */}
+            {!isPaid && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <span style={{ color: '#888', fontSize: '13px' }}>Free analyses used</span>
+                  <span style={{ color: freeLeft === 0 ? '#F85149' : '#E85D24', fontSize: '13px', fontWeight: '700' }}>
+                    {uses} / 5
+                  </span>
+                </div>
+                <div style={{ height: '8px', background: '#21262D', borderRadius: '99px', overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%', width: `${(uses / 5) * 100}%`,
+                    background: freeLeft === 0 ? '#F85149' : '#E85D24',
+                    borderRadius: '99px', transition: 'width 1s ease'
+                  }} />
+                </div>
+                {freeLeft === 0 && (
+                  <div style={{ color: '#F85149', fontSize: '12px', marginTop: '6px' }}>
+                    You've used all your free analyses. Upgrade to continue!
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Plan comparison */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '1.5rem' }}>
+              <div style={{ background: '#0D1117', borderRadius: '10px', padding: '1rem', border: '1px solid #21262D' }}>
+                <div style={{ color: '#888', fontSize: '12px', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase' }}>Free</div>
+                <div style={{ color: '#fff', fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>$0</div>
+                {['5 total analyses', 'All pages accessible', 'Progress tracking', 'Leaderboard'].map(f => (
+                  <div key={f} style={{ color: '#888', fontSize: '12px', marginBottom: '4px' }}>✓ {f}</div>
+                ))}
+              </div>
+              <div style={{
+                background: 'linear-gradient(135deg, #E85D2418, #FF7F4F18)',
+                borderRadius: '10px', padding: '1rem',
+                border: `1px solid ${isPaid ? '#E85D24' : '#E85D2444'}`
+              }}>
+                <div style={{ color: '#E85D24', fontSize: '12px', fontWeight: '700', marginBottom: '8px', textTransform: 'uppercase' }}>
+                  Pro {isPaid ? '✓ Active' : ''}
+                </div>
+                <div style={{ color: '#E85D24', fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>$9.99<span style={{ fontSize: '12px', color: '#888' }}>/mo</span></div>
+                {['Unlimited analyses', 'AI training plans', 'Recruiting profile', 'Priority support', 'All future features'].map(f => (
+                  <div key={f} style={{ color: '#ccc', fontSize: '12px', marginBottom: '4px' }}>✓ {f}</div>
+                ))}
+              </div>
+            </div>
+
+            {!isPaid && (
+              <button
+                onClick={() => window.open('mailto:diamondstatapp@gmail.com?subject=DiamondStat Pro Upgrade&body=I would like to upgrade to DiamondStat Pro!', '_blank')}
+                style={{
+                  width: '100%', padding: '12px', background: '#E85D24',
+                  border: 'none', borderRadius: '10px', color: 'white',
+                  fontSize: '15px', fontWeight: '700', cursor: 'pointer',
+                  fontFamily: 'Barlow, sans-serif', marginBottom: '10px'
+                }}>
+                Upgrade to Pro — $9.99/month
+              </button>
+            )}
+
+            <button onClick={() => setShowPlanInfo(false)}
+              style={{
+                width: '100%', padding: '10px', background: 'transparent',
+                border: '1px solid #21262D', borderRadius: '10px', color: '#888',
+                fontSize: '14px', fontWeight: '600', cursor: 'pointer',
+                fontFamily: 'Barlow, sans-serif'
+              }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="fade-in" style={{ marginBottom: '2rem' }}>
-        <div style={{ color: '#888', fontSize: '14px', marginBottom: '4px' }}>Good day,</div>
-        <h1 style={{ fontSize: '36px', color: '#fff' }}>
-          Welcome back, <span style={{ color: '#E85D24' }}>{name}</span> 👋
-        </h1>
-        <p style={{ color: '#555', fontSize: '14px', marginTop: '4px' }}>Here's your DiamondStat training overview</p>
+      <div className="fade-in" style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ color: '#888', fontSize: '14px', marginBottom: '4px' }}>Good day,</div>
+          <h1 style={{ fontSize: '36px', color: '#fff' }}>
+            Welcome back, <span style={{ color: '#E85D24' }}>{name}</span> 👋
+          </h1>
+          <p style={{ color: '#555', fontSize: '14px', marginTop: '4px' }}>Here's your DiamondStat training overview</p>
+        </div>
+
+        {/* Plan badge */}
+        <button onClick={() => setShowPlanInfo(true)}
+          style={{
+            background: isPaid ? 'linear-gradient(135deg, #E85D24, #FF7F4F)' : '#161B22',
+            border: `1px solid ${isPaid ? '#E85D24' : '#21262D'}`,
+            borderRadius: '10px', padding: '10px 16px', cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+            transition: 'all 0.2s ease', minWidth: '120px'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}
+        >
+          <div style={{ fontSize: '18px' }}>{isPaid ? '👑' : '💎'}</div>
+          <div style={{ color: '#fff', fontSize: '12px', fontWeight: '700' }}>
+            {isPaid ? 'Pro Plan' : 'Free Plan'}
+          </div>
+          {!isPaid && (
+            <div style={{ color: freeLeft === 0 ? '#F85149' : '#E85D24', fontSize: '11px', fontWeight: '600' }}>
+              {freeLeft} uses left
+            </div>
+          )}
+          {isPaid && (
+            <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '11px' }}>Unlimited</div>
+          )}
+        </button>
       </div>
 
       {/* Stats */}
