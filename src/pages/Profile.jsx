@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { checkAndIncrementUses } from '../useAILimit'
+import Paywall from './Paywall'
 
 function Section({ title, color, icon, content }) {
   return (
@@ -23,11 +25,22 @@ function Profile() {
   const [sections, setSections] = useState(null)
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [uses, setUses] = useState(0)
 
   const update = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
 
   const generatePlan = async () => {
     setLoading(true)
+
+    const { allowed, uses: currentUses } = await checkAndIncrementUses()
+    setUses(currentUses)
+    if (!allowed) {
+      setShowPaywall(true)
+      setLoading(false)
+      return
+    }
+
     try {
       const key = import.meta.env.VITE_ANTHROPIC_KEY
       const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -83,10 +96,12 @@ Be specific, motivating, and tailored exactly to this player's position and weak
   }
   const labelStyle = { color: '#888', fontSize: '13px', display: 'block', marginTop: '16px' }
   const sectionColors = ['#E85D24', '#3FB950', '#58A6FF', '#F0883E', '#A371F7', '#F85149']
-  const sectionIcons = ['baseball', 'dart', 'glove', 'muscle', 'calendar', 'bulb']
+  const sectionIcons = ['⚾', '🎯', '🧤', '💪', '📅', '💡']
 
   return (
     <div style={{ padding: '2rem', maxWidth: '800px', margin: '0 auto' }}>
+      {showPaywall && <Paywall uses={uses} onClose={() => setShowPaywall(false)} />}
+
       <h1 style={{ color: '#E85D24', fontSize: '32px', marginBottom: '8px' }}>My Training Plan</h1>
       <p style={{ color: '#888', marginBottom: '2rem', fontSize: '14px' }}>Fill out your profile and AI will build a fully personalized baseball training plan</p>
 
@@ -138,7 +153,7 @@ Be specific, motivating, and tailored exactly to this player's position and weak
               fontSize: '16px', fontWeight: '700', cursor: loading ? 'not-allowed' : 'pointer',
               fontFamily: 'Barlow, sans-serif'
             }}>
-            {loading ? 'AI is building your plan...' : 'Generate My Training Plan'}
+            {loading ? 'AI is building your plan...' : 'Generate My Training Plan ⚾'}
           </button>
         </div>
       ) : (

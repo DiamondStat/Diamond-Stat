@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { checkAndIncrementUses } from '../useAILimit'
+import Paywall from './Paywall'
 
 function GradeBar({ label, grade }) {
   const gradeColor = (g) => {
@@ -41,6 +43,8 @@ function PitchAnalyzer() {
   const [pitchType, setPitchType] = useState('')
   const [velocity, setVelocity] = useState('')
   const [saved, setSaved] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [uses, setUses] = useState(0)
 
   const handleVideo = (e) => {
     const file = e.target.files[0]
@@ -50,6 +54,15 @@ function PitchAnalyzer() {
   const analyzePitch = async () => {
     setLoading(true)
     setSaved(false)
+
+    const { allowed, uses: currentUses } = await checkAndIncrementUses()
+    setUses(currentUses)
+    if (!allowed) {
+      setShowPaywall(true)
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -120,6 +133,8 @@ Analyze their pitching mechanics and return ONLY a JSON object with no extra tex
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+      {showPaywall && <Paywall uses={uses} onClose={() => setShowPaywall(false)} />}
+
       <h1 style={{ color: '#E85D24', fontSize: '32px', marginBottom: '4px' }}>Pitch Analyzer</h1>
       <p style={{ color: '#888', marginBottom: '2rem', fontSize: '14px' }}>Upload your pitching video and get instant AI coaching feedback</p>
 
@@ -172,16 +187,9 @@ Analyze their pitching mechanics and return ONLY a JSON object with no extra tex
               <option value="Splitter">Splitter</option>
             </select>
 
-            <label style={{ color: '#888', fontSize: '13px', display: 'block', marginTop: '12px', marginBottom: '4px' }}>
-              Pitch Velocity (mph) — optional
-            </label>
-            <input
-              style={inputStyle}
-              type="number"
-              placeholder="e.g. 78"
-              value={velocity}
-              onChange={e => setVelocity(e.target.value)}
-            />
+            <label style={{ color: '#888', fontSize: '13px', display: 'block', marginTop: '12px', marginBottom: '4px' }}>Pitch Velocity (mph) — optional</label>
+            <input style={inputStyle} type="number" placeholder="e.g. 78"
+              value={velocity} onChange={e => setVelocity(e.target.value)} />
 
             <label style={{ color: '#888', fontSize: '13px', display: 'block', marginTop: '12px', marginBottom: '4px' }}>Notes (optional)</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}

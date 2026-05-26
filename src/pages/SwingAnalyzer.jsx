@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { checkAndIncrementUses } from '../useAILimit'
+import Paywall from './Paywall'
 
 function GradeBar({ label, grade }) {
   const gradeColor = (g) => {
@@ -40,6 +42,8 @@ function SwingAnalyzer() {
   const [notes, setNotes] = useState('')
   const [exitVelo, setExitVelo] = useState('')
   const [saved, setSaved] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [uses, setUses] = useState(0)
 
   const handleVideo = (e) => {
     const file = e.target.files[0]
@@ -49,6 +53,15 @@ function SwingAnalyzer() {
   const analyzeSwing = async () => {
     setLoading(true)
     setSaved(false)
+
+    const { allowed, uses: currentUses } = await checkAndIncrementUses()
+    setUses(currentUses)
+    if (!allowed) {
+      setShowPaywall(true)
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -119,6 +132,8 @@ Analyze their swing and return ONLY a JSON object with no extra text:
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+      {showPaywall && <Paywall uses={uses} onClose={() => setShowPaywall(false)} />}
+
       <h1 style={{ color: '#E85D24', fontSize: '32px', marginBottom: '4px' }}>Swing Analyzer</h1>
       <p style={{ color: '#888', marginBottom: '2rem', fontSize: '14px' }}>Upload your swing video and get instant AI coaching feedback</p>
 
@@ -159,16 +174,9 @@ Analyze their swing and return ONLY a JSON object with no extra text:
           </div>
 
           <div style={{ background: '#161B22', borderRadius: '12px', padding: '1.5rem' }}>
-            <label style={{ color: '#888', fontSize: '13px', display: 'block', marginBottom: '4px' }}>
-              Exit Velocity (mph) — optional
-            </label>
-            <input
-              style={inputStyle}
-              type="number"
-              placeholder="e.g. 87"
-              value={exitVelo}
-              onChange={e => setExitVelo(e.target.value)}
-            />
+            <label style={{ color: '#888', fontSize: '13px', display: 'block', marginBottom: '4px' }}>Exit Velocity (mph) — optional</label>
+            <input style={inputStyle} type="number" placeholder="e.g. 87"
+              value={exitVelo} onChange={e => setExitVelo(e.target.value)} />
             <label style={{ color: '#888', fontSize: '13px', display: 'block', marginTop: '12px', marginBottom: '4px' }}>Notes (optional)</label>
             <textarea value={notes} onChange={e => setNotes(e.target.value)}
               placeholder="e.g. Felt late on fastballs, dropping my back shoulder..."

@@ -1,5 +1,7 @@
 import { useState } from 'react'
 import { supabase } from '../supabase'
+import { checkAndIncrementUses } from '../useAILimit'
+import Paywall from './Paywall'
 
 function GradeBar({ label, grade }) {
   const gradeColor = (g) => {
@@ -40,6 +42,8 @@ function CatchingAnalyzer() {
   const [notes, setNotes] = useState('')
   const [skill, setSkill] = useState('')
   const [saved, setSaved] = useState(false)
+  const [showPaywall, setShowPaywall] = useState(false)
+  const [uses, setUses] = useState(0)
 
   const handleVideo = (e) => {
     const file = e.target.files[0]
@@ -49,6 +53,15 @@ function CatchingAnalyzer() {
   const analyzeCatching = async () => {
     setLoading(true)
     setSaved(false)
+
+    const { allowed, uses: currentUses } = await checkAndIncrementUses()
+    setUses(currentUses)
+    if (!allowed) {
+      setShowPaywall(true)
+      setLoading(false)
+      return
+    }
+
     try {
       const response = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -117,6 +130,8 @@ Analyze their catching mechanics and return ONLY a JSON object with no extra tex
 
   return (
     <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+      {showPaywall && <Paywall uses={uses} onClose={() => setShowPaywall(false)} />}
+
       <h1 style={{ color: '#E85D24', fontSize: '32px', marginBottom: '4px' }}>Catching Analyzer</h1>
       <p style={{ color: '#888', marginBottom: '2rem', fontSize: '14px' }}>Upload your catching video and get instant AI coaching feedback</p>
 
