@@ -29,7 +29,7 @@ function Paywall({ uses, onClose }) {
             $9.99<span style={{ fontSize: '16px', fontWeight: '400' }}>/month</span>
           </div>
           <div style={{ color: 'rgba(255,255,255,0.8)', fontSize: '13px', marginTop: '8px' }}>
-            Cancel anytime
+            Cancel anytime · Powered by Ko-fi
           </div>
         </div>
 
@@ -47,16 +47,29 @@ function Paywall({ uses, onClose }) {
           ))}
         </div>
 
+        {/* Steps */}
+        <div style={{
+          background: '#0D1117', borderRadius: '10px', padding: '1rem',
+          marginBottom: '1.5rem', textAlign: 'left', border: '1px solid #21262D'
+        }}>
+          <div style={{ color: '#888', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase', marginBottom: '8px' }}>
+            How it works
+          </div>
+          <div style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px' }}>1. Click Upgrade and subscribe on Ko-fi</div>
+          <div style={{ color: '#ccc', fontSize: '13px', marginBottom: '6px' }}>2. Email <span style={{ color: '#E85D24' }}>diamondstatapp@gmail.com</span> with your DiamondStat account email</div>
+          <div style={{ color: '#ccc', fontSize: '13px' }}>3. We activate your Pro account within 24 hours</div>
+        </div>
+
         {/* Buttons */}
         <button
-          onClick={() => window.open('mailto:diamondstatapp@gmail.com?subject=DiamondStat Pro Upgrade&body=I would like to upgrade to DiamondStat Pro!', '_blank')}
+          onClick={() => window.open('https://ko-fi.com/diamondstat/membership', '_blank')}
           style={{
             width: '100%', padding: '14px', background: '#E85D24',
             border: 'none', borderRadius: '10px', color: 'white',
             fontSize: '16px', fontWeight: '700', cursor: 'pointer',
             fontFamily: 'Barlow, sans-serif', marginBottom: '10px'
           }}>
-          Upgrade to Pro — $9.99/month
+          Upgrade to Pro — $9.99/month ⚾
         </button>
 
         <button onClick={onClose}

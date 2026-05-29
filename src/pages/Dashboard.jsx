@@ -186,7 +186,7 @@ function Dashboard() {
 
             {!isPaid && (
               <button
-                onClick={() => window.open('mailto:diamondstatapp@gmail.com?subject=DiamondStat Pro Upgrade&body=I would like to upgrade to DiamondStat Pro!', '_blank')}
+                onClick={() => window.open('https://ko-fi.com/diamondstat/membership', '_blank')}
                 style={{
                   width: '100%', padding: '12px', background: '#E85D24',
                   border: 'none', borderRadius: '10px', color: 'white',
