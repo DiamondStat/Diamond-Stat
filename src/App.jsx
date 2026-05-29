@@ -13,6 +13,7 @@ import Schedule from './pages/Schedule'
 import Leaderboard from './pages/Leaderboard'
 import Goals from './pages/Goals'
 import RecruitingProfile from './pages/RecruitingProfile'
+import VideoGenerator from './pages/VideoGenerator'
 import Auth from './pages/Auth'
 
 function Navbar({ user, onSignOut }) {
@@ -148,7 +149,8 @@ function Navbar({ user, onSignOut }) {
 
         {dropdown('more', 'More', '⋯', [
           { to: '/recruiting', icon: '📄', label: 'Recruiting Profile', desc: 'Generate profile for coaches' },
-        ], ['/recruiting'])}
+          { to: '/videogenerator', icon: '🎬', label: 'Stats Video', desc: 'Download video with stats overlay' },
+        ], ['/recruiting', '/videogenerator'])}
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
@@ -210,6 +212,7 @@ function App() {
           <Route path="/benchmarks" element={<Benchmarks />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/recruiting" element={<RecruitingProfile />} />
+          <Route path="/videogenerator" element={<VideoGenerator />} />
         </Routes>
       </div>
     </BrowserRouter>
